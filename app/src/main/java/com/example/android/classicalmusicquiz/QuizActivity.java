@@ -24,6 +24,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
@@ -64,6 +66,8 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
     private Button[] mButtons;
     private SimpleExoPlayer mExoPlayer;
     private SimpleExoPlayerView mExoPlayerView;
+    private MediaSessionCompat mediaSessionCompat;
+    private PlaybackStateCompat.Builder mBuilder;
 
 
     @Override
@@ -107,6 +111,23 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
             finish();
         }
 
+        mediaSessionCompat = new MediaSessionCompat(this, "MEDIA_SESSION_COMPAT");
+        mediaSessionCompat.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
+                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
+        mediaSessionCompat.setMediaButtonReceiver(null);
+
+        mBuilder = new PlaybackStateCompat.Builder()
+                .setActions(
+                        PlaybackStateCompat.ACTION_PLAY |
+                                PlaybackStateCompat.ACTION_PAUSE |
+                                PlaybackStateCompat.ACTION_PLAY_PAUSE |
+                                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+                );
+
+        mediaSessionCompat.setPlaybackState(mBuilder.build());
+
+        mediaSessionCompat.setCallback(new MySessionCallback());
+
         // Initialize the buttons with the composers names.
         mButtons = initializeButtons(mQuestionSampleIDs);
 
@@ -121,6 +142,24 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
 
 
 
+    }
+
+    private class MySessionCallback extends MediaSessionCompat.Callback {
+
+        @Override
+        public void onPlay() {
+            mBuilder.setState(PlaybackStateCompat.STATE_PLAYING, mExoPlayer.getCurrentPosition(), 1f);
+        }
+
+        @Override
+        public void onPause() {
+            mBuilder.setState(PlaybackStateCompat.STATE_PAUSED, mExoPlayer.getCurrentPosition(), 1f);
+        }
+
+        @Override
+        public void onSkipToNext() {
+            mBuilder.setState(PlaybackStateCompat.STATE_SKIPPING_TO_NEXT, mExoPlayer.getCurrentPosition(), 1f);
+        }
     }
 
 
@@ -275,10 +314,11 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
         if (playbackState == ExoPlayer.STATE_READY && playWhenReady){
-            Toast.makeText(QuizActivity.this, "Playing", Toast.LENGTH_LONG).show();
+            mBuilder.setState(PlaybackStateCompat.STATE_PLAYING, mExoPlayer.getCurrentPosition(), 1f);
         }else if (playbackState == ExoPlayer.STATE_READY){
-            Toast.makeText(QuizActivity.this, "Paused", Toast.LENGTH_LONG).show();
+            mBuilder.setState(PlaybackStateCompat.STATE_PAUSED, mExoPlayer.getCurrentPosition(), 1f);
         }
+        mediaSessionCompat.setPlaybackState(mBuilder.build());
     }
 
     @Override
